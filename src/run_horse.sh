@@ -6,4 +6,4 @@ python edit.py  --source_prompt "A young boy is riding a brown horse in a countr
                 --num_steps 15  \
                 --inject 3 --offload \
                 --name 'flux-dev'  \
-                --output_dir 'examples/edit-result/horse/' 
+                --output_dir 'examples/edit-result/horse/'

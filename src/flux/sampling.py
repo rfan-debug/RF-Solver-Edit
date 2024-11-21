@@ -1,5 +1,5 @@
 import math
-from typing import Callable
+from collections.abc import Callable
 
 import torch
 from einops import rearrange, repeat
@@ -47,9 +47,7 @@ def time_shift(mu: float, sigma: float, t: Tensor):
     return math.exp(mu) / (math.exp(mu) + (1 / t - 1) ** sigma)
 
 
-def get_lin_function(
-    x1: float = 256, y1: float = 0.5, x2: float = 4096, y2: float = 1.15
-) -> Callable[[float], float]:
+def get_lin_function(x1: float = 256, y1: float = 0.5, x2: float = 4096, y2: float = 1.15) -> Callable[[float], float]:
     m = (y2 - y1) / (x2 - x1)
     b = y1 - m * x1
     return lambda x: m * x + b
@@ -85,40 +83,32 @@ def denoise(
     # sampling parameters
     timesteps: list[float],
     inverse,
-    info, 
-    guidance: float = 4.0
+    info,
+    guidance: float = 4.0,
 ):
     # this is ignored for schnell
-    inject_list = [True] * info['inject_step'] + [False] * (len(timesteps[:-1]) - info['inject_step'])
+    inject_list = [True] * info["inject_step"] + [False] * (len(timesteps[:-1]) - info["inject_step"])
 
     if inverse:
         timesteps = timesteps[::-1]
         inject_list = inject_list[::-1]
     guidance_vec = torch.full((img.shape[0],), guidance, device=img.device, dtype=img.dtype)
 
-    step_list = []
     for i, (t_curr, t_prev) in enumerate(zip(timesteps[:-1], timesteps[1:])):
         t_vec = torch.full((img.shape[0],), t_curr, dtype=img.dtype, device=img.device)
-        info['t'] = t_prev if inverse else t_curr
-        info['inverse'] = inverse
-        info['second_order'] = False
-        info['inject'] = inject_list[i]
+        info["t"] = t_prev if inverse else t_curr
+        info["inverse"] = inverse
+        info["second_order"] = False
+        info["inject"] = inject_list[i]
 
         pred, info = model(
-            img=img,
-            img_ids=img_ids,
-            txt=txt,
-            txt_ids=txt_ids,
-            y=vec,
-            timesteps=t_vec,
-            guidance=guidance_vec,
-            info=info
+            img=img, img_ids=img_ids, txt=txt, txt_ids=txt_ids, y=vec, timesteps=t_vec, guidance=guidance_vec, info=info
         )
 
         img_mid = img + (t_prev - t_curr) / 2 * pred
 
         t_vec_mid = torch.full((img.shape[0],), (t_curr + (t_prev - t_curr) / 2), dtype=img.dtype, device=img.device)
-        info['second_order'] = True
+        info["second_order"] = True
         pred_mid, info = model(
             img=img_mid,
             img_ids=img_ids,
@@ -127,7 +117,7 @@ def denoise(
             y=vec,
             timesteps=t_vec_mid,
             guidance=guidance_vec,
-            info=info
+            info=info,
         )
 
         first_order = (pred_mid - pred) / ((t_prev - t_curr) / 2)

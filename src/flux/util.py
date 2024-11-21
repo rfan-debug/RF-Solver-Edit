@@ -22,6 +22,7 @@ class ModelSpec:
     repo_flow: str | None
     repo_ae: str | None
 
+
 configs = {
     "flux-dev": ModelSpec(
         repo_id="black-forest-labs/FLUX.1-dev",
@@ -104,14 +105,9 @@ def print_load_warning(missing: list[str], unexpected: list[str]) -> None:
 def load_flow_model(name: str, device: str | torch.device = "cuda", hf_download: bool = True):
     # Loading Flux
     print("Init model")
-    
+
     ckpt_path = configs[name].ckpt_path
-    if (
-        ckpt_path is None
-        and configs[name].repo_id is not None
-        and configs[name].repo_flow is not None
-        and hf_download
-    ):
+    if ckpt_path is None and configs[name].repo_id is not None and configs[name].repo_flow is not None and hf_download:
         ckpt_path = hf_hub_download(configs[name].repo_id, configs[name].repo_flow)
 
     with torch.device("meta" if ckpt_path is not None else device):
@@ -132,17 +128,14 @@ def load_t5(device: str | torch.device = "cuda", max_length: int = 512) -> HFEmb
 
 
 def load_clip(device: str | torch.device = "cuda") -> HFEmbedder:
-    return HFEmbedder("openai/clip-vit-large-patch14", max_length=77, is_clip=True, torch_dtype=torch.bfloat16).to(device)
+    return HFEmbedder("openai/clip-vit-large-patch14", max_length=77, is_clip=True, torch_dtype=torch.bfloat16).to(
+        device
+    )
 
 
 def load_ae(name: str, device: str | torch.device = "cuda", hf_download: bool = True) -> AutoEncoder:
     ckpt_path = configs[name].ae_path
-    if (
-        ckpt_path is None
-        and configs[name].repo_id is not None
-        and configs[name].repo_ae is not None
-        and hf_download
-    ):
+    if ckpt_path is None and configs[name].repo_id is not None and configs[name].repo_ae is not None and hf_download:
         ckpt_path = hf_hub_download(configs[name].repo_id, configs[name].repo_ae)
 
     # Loading the autoencoder
@@ -184,9 +177,7 @@ class WatermarkEmbedder:
         # watermarking libary expects input as cv2 BGR format
         for k in range(image_np.shape[0]):
             image_np[k] = self.encoder.encode(image_np[k], "dwtDct")
-        image = torch.from_numpy(rearrange(image_np[:, :, :, ::-1], "(n b) h w c -> n b c h w", n=n)).to(
-            image.device
-        )
+        image = torch.from_numpy(rearrange(image_np[:, :, :, ::-1], "(n b) h w c -> n b c h w", n=n)).to(image.device)
         image = torch.clamp(image / 255, min=0.0, max=1.0)
         if squeeze:
             image = image[0]

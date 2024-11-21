@@ -3,9 +3,14 @@ from dataclasses import dataclass
 import torch
 from torch import Tensor, nn
 
-from flux.modules.layers import (DoubleStreamBlock, EmbedND, LastLayer,
-                                 MLPEmbedder, SingleStreamBlock,
-                                 timestep_embedding)
+from flux.modules.layers import (
+    DoubleStreamBlock,
+    EmbedND,
+    LastLayer,
+    MLPEmbedder,
+    SingleStreamBlock,
+    timestep_embedding,
+)
 
 
 @dataclass
@@ -36,9 +41,7 @@ class Flux(nn.Module):
         self.in_channels = params.in_channels
         self.out_channels = self.in_channels
         if params.hidden_size % params.num_heads != 0:
-            raise ValueError(
-                f"Hidden size {params.hidden_size} must be divisible by num_heads {params.num_heads}"
-            )
+            raise ValueError(f"Hidden size {params.hidden_size} must be divisible by num_heads {params.num_heads}")
         pe_dim = params.hidden_size // params.num_heads
         if sum(params.axes_dim) != pe_dim:
             raise ValueError(f"Got {params.axes_dim} but expected positional dim {pe_dim}")
@@ -83,7 +86,7 @@ class Flux(nn.Module):
         timesteps: Tensor,
         y: Tensor,
         guidance: Tensor | None = None,
-        info = None,
+        info=None,
     ) -> Tensor:
         if img.ndim != 3 or txt.ndim != 3:
             raise ValueError("Input img and txt tensors must have 3 dimensions.")
@@ -105,10 +108,10 @@ class Flux(nn.Module):
             img, txt = block(img=img, txt=txt, vec=vec, pe=pe, info=info)
 
         cnt = 0
-        img = torch.cat((txt, img), 1) 
-        info['type'] = 'single'
+        img = torch.cat((txt, img), 1)
+        info["type"] = "single"
         for block in self.single_blocks:
-            info['id'] = cnt
+            info["id"] = cnt
             img, info = block(img, vec=vec, pe=pe, info=info)
             cnt += 1
 

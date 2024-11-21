@@ -1,24 +1,26 @@
+# ruff: noqa
+
 import os
 import re
 import time
-from io import BytesIO
-import uuid
 from dataclasses import dataclass
 from glob import iglob
-import argparse
+
+import gradio as gr
+import torch
 from einops import rearrange
-from fire import Fire
 from PIL import ExifTags, Image
 
-
-import torch
-import torch.nn.functional as F
-import gradio as gr
-import numpy as np
-from transformers import pipeline
-
 from flux.sampling import denoise, get_schedule, prepare, unpack
-from flux.util import (configs, embed_watermark, load_ae, load_clip, load_flow_model, load_t5)
+from flux.util import (
+    configs,
+    embed_watermark,
+    load_ae,
+    load_clip,
+    load_flow_model,
+    load_t5,
+)
+
 
 @dataclass
 class SamplingOptions:
@@ -31,10 +33,11 @@ class SamplingOptions:
     guidance: float
     seed: int | None
 
+
 @torch.inference_mode()
 def encode(init_image, torch_device, ae):
     init_image = torch.from_numpy(init_image).permute(2, 0, 1).float() / 127.5 - 1
-    init_image = init_image.unsqueeze(0) 
+    init_image = init_image.unsqueeze(0)
     init_image = init_image.to(torch_device)
     with torch.no_grad():
         init_image = ae.encode(init_image.to()).to(torch.bfloat16)
@@ -49,8 +52,8 @@ class FluxEditor:
         self.name = args.name
         self.is_schnell = args.name == "flux-schnell"
 
-        self.feature_path = 'feature'
-        self.output_dir = 'result'
+        self.feature_path = "feature"
+        self.output_dir = "result"
         self.add_sampling_metadata = True
 
         if self.name not in configs:
@@ -71,14 +74,14 @@ class FluxEditor:
             self.model.cpu()
             torch.cuda.empty_cache()
             self.ae.encoder.to(self.device)
-    
+
     @torch.inference_mode()
     def edit(self, init_image, source_prompt, target_prompt, num_steps, inject_step, guidance, seed):
         torch.cuda.empty_cache()
         seed = None
         # if seed == -1:
         #     seed = None
-        
+
         shape = init_image.shape
 
         new_h = shape[0] if shape[0] % 16 == 0 else shape[0] - shape[0] % 16
@@ -90,8 +93,6 @@ class FluxEditor:
         init_image = encode(init_image, self.device, self.ae)
 
         print(init_image.shape)
-
-        rng = torch.Generator(device="cpu")
         opts = SamplingOptions(
             source_prompt=source_prompt,
             target_prompt=target_prompt,
@@ -103,7 +104,7 @@ class FluxEditor:
         )
         if opts.seed is None:
             opts.seed = torch.Generator(device="cpu").seed()
-        
+
         print(f"Generating with seed {opts.seed}:\n{opts.source_prompt}")
         t0 = time.perf_counter()
 
@@ -115,8 +116,8 @@ class FluxEditor:
 
         #############inverse#######################
         info = {}
-        info['feature'] = {}
-        info['inject_step'] = inject_step
+        info["feature"] = {}
+        info["inject_step"] = inject_step
 
         if not os.path.exists(self.feature_path):
             os.mkdir(self.feature_path)
@@ -135,7 +136,7 @@ class FluxEditor:
         # inversion initial noise
         with torch.no_grad():
             z, info = denoise(self.model, **inp, timesteps=timesteps, guidance=1, inverse=True, info=info)
-        
+
         inp_target["img"] = z
 
         timesteps = get_schedule(opts.num_steps, inp_target["img"].shape[1], shift=(self.name != "flux-schnell"))
@@ -186,10 +187,8 @@ class FluxEditor:
             exif_data[ExifTags.Base.ImageDescription] = source_prompt
         img.save(fn, exif=exif_data, quality=95, subsampling=0)
 
-        
         print("End Edit")
         return img
-
 
 
 def create_demo(model_name: str, device: str = "cuda" if torch.cuda.is_available() else "cpu", offload: bool = False):
@@ -197,17 +196,16 @@ def create_demo(model_name: str, device: str = "cuda" if torch.cuda.is_available
     is_schnell = model_name == "flux-schnell"
 
     with gr.Blocks() as demo:
-        gr.Markdown(f"# RF-Edit Demo (FLUX for image editing)")
-        
+        gr.Markdown("# RF-Edit Demo (FLUX for image editing)")
+
         with gr.Row():
             with gr.Column():
                 source_prompt = gr.Textbox(label="Source Prompt", value="")
                 target_prompt = gr.Textbox(label="Target Prompt", value="")
                 init_image = gr.Image(label="Input Image", visible=True)
-                
-                
+
                 generate_btn = gr.Button("Generate")
-            
+
             with gr.Column():
                 with gr.Accordion("Advanced Options", open=True):
                     num_steps = gr.Slider(1, 30, 25, step=1, label="Number of steps")
@@ -215,24 +213,26 @@ def create_demo(model_name: str, device: str = "cuda" if torch.cuda.is_available
                     guidance = gr.Slider(1.0, 10.0, 2, step=0.1, label="Guidance", interactive=not is_schnell)
                     # seed = gr.Textbox(0, label="Seed (-1 for random)", visible=False)
                     # add_sampling_metadata = gr.Checkbox(label="Add sampling parameters to metadata?", value=False)
-                
+
                 output_image = gr.Image(label="Generated Image")
 
         generate_btn.click(
             fn=editor.edit,
             inputs=[init_image, source_prompt, target_prompt, num_steps, inject_step, guidance],
-            outputs=[output_image]
+            outputs=[output_image],
         )
-
 
     return demo
 
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser(description="Flux")
     parser.add_argument("--name", type=str, default="flux-dev", choices=list(configs.keys()), help="Model name")
-    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device to use")
+    parser.add_argument(
+        "--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device to use"
+    )
     parser.add_argument("--offload", action="store_true", help="Offload model to CPU when not in use")
     parser.add_argument("--share", action="store_true", help="Create a public link to your demo")
 
@@ -240,4 +240,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     demo = create_demo(args.name, args.device, args.offload)
-    demo.launch(server_name='0.0.0.0', share=args.share, server_port=args.port)
+    demo.launch(server_name="0.0.0.0", share=args.share, server_port=args.port)

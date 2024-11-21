@@ -1,24 +1,29 @@
+import argparse
 import os
 import re
 import time
+from argparse import ArgumentParser
 from dataclasses import dataclass
 from glob import iglob
-import argparse
+
+import numpy as np
 import torch
 from einops import rearrange
-from fire import Fire
 from PIL import ExifTags, Image
+from transformers import pipeline
 
 from flux.sampling import denoise, get_schedule, prepare, unpack
-from flux.util import (configs, embed_watermark, load_ae, load_clip,
-                       load_flow_model, load_t5)
-from transformers import pipeline
-from PIL import Image
-import numpy as np
-
-import os
+from flux.util import (
+    configs,
+    embed_watermark,
+    load_ae,
+    load_clip,
+    load_flow_model,
+    load_t5,
+)
 
 NSFW_THRESHOLD = 0.85
+
 
 @dataclass
 class SamplingOptions:
@@ -31,13 +36,20 @@ class SamplingOptions:
     guidance: float
     seed: int | None
 
+
 @torch.inference_mode()
 def encode(init_image, torch_device, ae):
     init_image = torch.from_numpy(init_image).permute(2, 0, 1).float() / 127.5 - 1
-    init_image = init_image.unsqueeze(0) 
+    init_image = init_image.unsqueeze(0)
     init_image = init_image.to(torch_device)
     init_image = ae.encode(init_image.to()).to(torch.bfloat16)
     return init_image
+
+
+def parse_prompt(args):
+    parser = ArgumentParser(args)
+    return parser.parse_args()
+
 
 @torch.inference_mode()
 def main(
@@ -96,10 +108,10 @@ def main(
         model.cpu()
         torch.cuda.empty_cache()
         ae.encoder.to(torch_device)
-    
+
     init_image = None
-    init_image = np.array(Image.open(args.source_img_dir).convert('RGB'))
-    
+    init_image = np.array(Image.open(args.source_img_dir).convert("RGB"))
+
     shape = init_image.shape
 
     new_h = shape[0] if shape[0] % 16 == 0 else shape[0] - shape[0] % 16
@@ -137,9 +149,9 @@ def main(
             t5, clip = t5.to(torch_device), clip.to(torch_device)
 
         info = {}
-        info['feature_path'] = args.feature_path
-        info['feature'] = {}
-        info['inject_step'] = args.inject
+        info["feature_path"] = args.feature_path
+        info["feature"] = {}
+        info["inject_step"] = args.inject
         if not os.path.exists(args.feature_path):
             os.mkdir(args.feature_path)
 
@@ -155,14 +167,14 @@ def main(
 
         # inversion initial noise
         z, info = denoise(model, **inp, timesteps=timesteps, guidance=1, inverse=True, info=info)
-        
+
         inp_target["img"] = z
 
         timesteps = get_schedule(opts.num_steps, inp_target["img"].shape[1], shift=(name != "flux-schnell"))
 
         # denoise initial noise
         x, _ = denoise(model, **inp_target, timesteps=timesteps, guidance=guidance, inverse=False, info=info)
-        
+
         if offload:
             model.cpu()
             torch.cuda.empty_cache()
@@ -200,7 +212,7 @@ def main(
 
             img = Image.fromarray((127.5 * (x + 1.0)).cpu().byte().numpy())
             nsfw_score = [x["score"] for x in nsfw_classifier(img) if x["label"] == "nsfw"][0]
-            
+
             if nsfw_score < NSFW_THRESHOLD:
                 exif_data = Image.Exif()
                 exif_data[ExifTags.Base.Software] = "AI generated;txt2img;flux"
@@ -219,29 +231,25 @@ def main(
             else:
                 opts = None
 
-if __name__ == "__main__":
-    
-    parser = argparse.ArgumentParser(description='RF-Edit')
 
-    parser.add_argument('--name', default='flux-dev', type=str,
-                        help='flux model')
-    parser.add_argument('--source_img_dir', default='', type=str,
-                        help='The path of the source image')
-    parser.add_argument('--source_prompt', type=str,
-                        help='describe the content of the source image (or leaves it as null)')
-    parser.add_argument('--target_prompt', type=str,
-                        help='describe the requirement of editing')
-    parser.add_argument('--feature_path', type=str, default='feature',
-                        help='the path to save the feature ')
-    parser.add_argument('--guidance', type=float, default=5,
-                        help='guidance scale')
-    parser.add_argument('--num_steps', type=int, default=25,
-                        help='the number of timesteps for inversion and denoising')
-    parser.add_argument('--inject', type=int, default=20,
-                        help='the number of timesteps which apply the feature sharing')
-    parser.add_argument('--output_dir', default='output', type=str,
-                        help='the path of the edited image')
-    parser.add_argument('--offload', action='store_true', help='set it to True if the memory of GPU is not enough')
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="RF-Edit")
+
+    parser.add_argument("--name", default="flux-dev", type=str, help="flux model")
+    parser.add_argument("--source_img_dir", default="", type=str, help="The path of the source image")
+    parser.add_argument(
+        "--source_prompt", type=str, help="describe the content of the source image (or leaves it as null)"
+    )
+    parser.add_argument("--target_prompt", type=str, help="describe the requirement of editing")
+    parser.add_argument("--feature_path", type=str, default="feature", help="the path to save the feature ")
+    parser.add_argument("--guidance", type=float, default=5, help="guidance scale")
+    parser.add_argument("--num_steps", type=int, default=25, help="the number of timesteps for inversion and denoising")
+    parser.add_argument(
+        "--inject", type=int, default=20, help="the number of timesteps which apply the feature sharing"
+    )
+    parser.add_argument("--output_dir", default="output", type=str, help="the path of the edited image")
+    parser.add_argument("--offload", action="store_true", help="set it to True if the memory of GPU is not enough")
 
     args = parser.parse_args()
 

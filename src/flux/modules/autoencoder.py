@@ -269,8 +269,8 @@ class DiagonalGaussian(nn.Module):
         mean, logvar = torch.chunk(z, 2, dim=self.chunk_dim)
         # import pdb;pdb.set_trace()
         if self.sample:
-            std = torch.exp(0.5 * logvar)
-            return mean #+ std * torch.randn_like(mean)
+            # std = torch.exp(0.5 * logvar)
+            return mean  # + std * torch.randn_like(mean)
         else:
             return mean
 

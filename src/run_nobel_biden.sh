@@ -5,4 +5,4 @@ python edit.py  --source_prompt "" \
                 --num_steps 25  \
                 --inject 2 \
                 --name 'flux-dev'  \
-                --output_dir 'examples/edit-result/nobel/' 
+                --output_dir 'examples/edit-result/nobel/'

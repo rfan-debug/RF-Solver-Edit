@@ -7,7 +7,6 @@ from torch import Tensor, nn
 
 from flux.math import attention, rope
 
-import os
 
 class EmbedND(nn.Module):
     def __init__(self, dim: int, theta: int, axes_dim: list[int]):
@@ -37,9 +36,7 @@ def timestep_embedding(t: Tensor, dim, max_period=10000, time_factor: float = 10
     """
     t = time_factor * t
     half = dim // 2
-    freqs = torch.exp(-math.log(max_period) * torch.arange(start=0, end=half, dtype=torch.float32) / half).to(
-        t.device
-    )
+    freqs = torch.exp(-math.log(max_period) * torch.arange(start=0, end=half, dtype=torch.float32) / half).to(t.device)
 
     args = t[:, None].float() * freqs[None]
     embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
@@ -184,12 +181,12 @@ class DoubleStreamBlock(nn.Module):
         txt_q, txt_k = self.txt_attn.norm(txt_q, txt_k, txt_v)
 
         # run actual attention
-        q = torch.cat((txt_q, img_q), dim=2) #[8, 24, 512, 128] + [8, 24, 900, 128] -> [8, 24, 1412, 128]
+        q = torch.cat((txt_q, img_q), dim=2)  # [8, 24, 512, 128] + [8, 24, 900, 128] -> [8, 24, 1412, 128]
         k = torch.cat((txt_k, img_k), dim=2)
         v = torch.cat((txt_v, img_v), dim=2)
         # import pdb;pdb.set_trace()
         attn = attention(q, k, v, pe=pe)
- 
+
         txt_attn, img_attn = attn[:, : txt.shape[1]], attn[:, txt.shape[1] :]
 
         # calculate the img bloks
@@ -252,12 +249,22 @@ class SingleStreamBlock(nn.Module):
         #         v = torch.load(store_path, weights_only=True)
 
         # Save the features in the memory
-        if info['inject'] and info['id'] > 19:
-            feature_name = str(info['t']) + '_' + str(info['second_order']) + '_' + str(info['id']) + '_' + info['type'] + '_' + 'V'
-            if info['inverse']:
-                info['feature'][feature_name] = v.cpu()
+        if info["inject"] and info["id"] > 19:
+            feature_name = (
+                str(info["t"])
+                + "_"
+                + str(info["second_order"])
+                + "_"
+                + str(info["id"])
+                + "_"
+                + info["type"]
+                + "_"
+                + "V"
+            )
+            if info["inverse"]:
+                info["feature"][feature_name] = v.cpu()
             else:
-                v = info['feature'][feature_name].cuda()
+                v = info["feature"][feature_name].cuda()
 
         # compute attention
         attn = attention(q, k, v, pe=pe)

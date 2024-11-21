@@ -1,0 +1,102 @@
+default_stages: [ pre-commit ]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-docstring-first
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: [ --maxkb=10240 ]
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-json
+      - id: pretty-format-json
+        args:
+          - "--autofix"
+          - "--indent=4"
+          - "--no-sort-keys"
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: [
+          "--profile", "black",
+          '--filter-files',
+          "--extend-skip-glob=*_pb2.py",
+          "--extend-skip-glob=*_pb2.pyi",
+          "--extend-skip-glob=*_pb2_grpc.py",
+          "--extend-skip-glob=*__init__.py"
+        ]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.7.1
+    hooks:
+      - id: ruff
+        args: [
+          "--line-length", "120",
+          "--exclude", "__init__.py",
+          "--exclude", "*_pb2.py",
+          "--exclude", "*_pb2.pyi",
+          "--exclude", "*_pb2_grpc.py",
+          "--fix",
+        ]
+
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        name: black
+        entry: black
+        language: python
+        types_or: [ python, pyi ]
+        args: [ "--line-length", "120", "-t", "py310" ]
+        exclude: (.*_pb2\.py|.*_pb2\.pyi|.*_pb2_grpc\.py)
+      - id: black-jupyter
+        name: black-jupyter
+        entry: black
+        language: python
+        types_or: [ jupyter ]
+        args: [ "--line-length", "120", "-t", "py310" ]
+        additional_dependencies: [ ".[jupyter]" ]
+
+  - repo: https://github.com/yoheimuta/protolint
+    rev: v0.50.5
+    hooks:
+      - id: protolint
+        args: [
+          "-fix",
+          "-config_path", ".proto_lint.yaml"
+        ]
+
+  - repo: https://github.com/executablebooks/mdformat
+    rev: 0.7.18
+    hooks:
+      - id: mdformat
+        args: [ "--number" ]
+        additional_dependencies:
+          - mdformat-gfm
+          - mdformat-tables
+          - mdformat_frontmatter
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.3.0
+    hooks:
+      - id: codespell
+        files: ^.*\.(py|md|yaml|yml|toml|proto|sh)$
+        args: [
+          "--ignore-words",
+          ".codespell-ignore-words.txt",
+        ]
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.19.0
+    hooks:
+      - id: pyupgrade
+        args: [ --py310-plus ]
+
+exclude: "playground/.*|lib/common/tests/pb/.*"
