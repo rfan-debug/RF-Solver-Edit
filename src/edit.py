@@ -56,9 +56,6 @@ def main(
     args,
     seed: int | None = None,
     device: str = "cuda" if torch.cuda.is_available() else "cpu",
-    num_steps: int | None = None,
-    loop: bool = False,
-    offload: bool = False,
     add_sampling_metadata: bool = True,
 ):
     """
@@ -95,8 +92,6 @@ def main(
         raise ValueError(f"Got unknown model name: {name}, chose from {available}")
 
     torch_device = torch.device(device)
-    if num_steps is None:
-        num_steps = 4 if name == "flux-schnell" else 25
 
     # init all components
     t5 = load_t5(torch_device, max_length=256 if name == "flux-schnell" else 512)
@@ -132,9 +127,6 @@ def main(
         guidance=guidance,
         seed=seed,
     )
-
-    if loop:
-        opts = parse_prompt(opts)
 
     while opts is not None:
         if opts.seed is None:
@@ -224,11 +216,6 @@ def main(
                 idx += 1
             else:
                 print("Your generated image may contain NSFW content.")
-
-            if loop:
-                print("-" * 80)
-                opts = parse_prompt(opts)
-            else:
                 opts = None
 
 
