@@ -100,6 +100,7 @@ def denoise(
         info["inverse"] = inverse
         info["second_order"] = False
         info["inject"] = inject_list[i]
+        print("injection length: " + len(info["inject"]))
 
         pred, info = model(
             img=img, img_ids=img_ids, txt=txt, txt_ids=txt_ids, y=vec, timesteps=t_vec, guidance=guidance_vec, info=info
