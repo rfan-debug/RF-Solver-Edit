@@ -93,6 +93,7 @@ def denoise(
         timesteps = timesteps[::-1]
         inject_list = inject_list[::-1]
     guidance_vec = torch.full((img.shape[0],), guidance, device=img.device, dtype=img.dtype)
+    print("injection length: " + len(inject_list))
 
     for i, (t_curr, t_prev) in enumerate(zip(timesteps[:-1], timesteps[1:])):
         t_vec = torch.full((img.shape[0],), t_curr, dtype=img.dtype, device=img.device)
@@ -100,7 +101,6 @@ def denoise(
         info["inverse"] = inverse
         info["second_order"] = False
         info["inject"] = inject_list[i]
-        print("injection length: " + len(info["inject"]))
 
         pred, info = model(
             img=img, img_ids=img_ids, txt=txt, txt_ids=txt_ids, y=vec, timesteps=t_vec, guidance=guidance_vec, info=info
